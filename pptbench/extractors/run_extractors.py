@@ -2,12 +2,17 @@
 
 import os
 from json import dumps
+import logging
 
 from pptx import Presentation
 
-from .ppt_extractor import PowerPointShapeExtractor
+from pptbench.extractors.ppt_extractor import PowerPointShapeExtractor
 
-def run_extractors(pptx_path: str, measurement_unit: str = "emu") -> dict:
+# Configure logging to include DEBUG level
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def run_extractors(pptx_path: str, measurement_unit: str = "pt") -> dict:
     if not pptx_path:
         raise ValueError("pptx_path is required")
     if not os.path.exists(pptx_path):
@@ -18,13 +23,7 @@ def run_extractors(pptx_path: str, measurement_unit: str = "emu") -> dict:
     return extracted_info
 
 # Example usage
-# if __name__ == "__main__":
-#     from sys import argv
-#
-#     if len(argv) != 2:
-#         print("Usage: python run_extractors.py <path_to_pptx>")
-#         exit(1)
-#
-#     pptx_path = argv[1]
-#     extracted_info = run_extractors(pptx_path, measurement_unit="pt")
-#     print(dumps(extracted_info, indent=4))
+if __name__ == "__main__":
+    pptx_path = "../../dataset/pptx/FBNIGNWBP6W7JONNO2JVH7YFA2SSPXDN.pptx"
+    extracted_info = run_extractors(pptx_path, measurement_unit="pt")
+    print(dumps(extracted_info, indent=4))

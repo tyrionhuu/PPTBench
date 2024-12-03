@@ -8,6 +8,11 @@ from pptx.shapes.connector import Connector
 from pptx.shapes.graphfrm import GraphicFrame
 from pptx.shapes.group import GroupShape
 from pptx.shapes.picture import Movie, Picture
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class BaseShapeExtractor:
@@ -16,10 +21,16 @@ class BaseShapeExtractor:
         self._measurement_unit = measurement_unit
 
     def extract_shape_type(self) -> str:
-        shape_type = self._shape.shape_type
-        if isinstance(shape_type, MSO_SHAPE_TYPE):
-            return shape_type.name
-        return str(shape_type)
+        try:
+            shape_type = self._shape.shape_type
+            if isinstance(shape_type, MSO_SHAPE_TYPE):
+                return shape_type.name
+            return str(shape_type)
+        except NotImplementedError:
+            logger.warning(
+                f"Shape ID {self._shape.shape_id} has an unrecognized shape type."
+            )
+            return "UNKNOWN_SHAPE_TYPE"
 
     def extract_height(self) -> int | float:
         return unit_conversion(self._shape.height, self._measurement_unit)
@@ -89,9 +100,18 @@ class BaseAutoShapeExtractor(BaseShapeExtractor):
     def extract_shape(self) -> dict:
         shape_data = super().extract_shape()
         if self._shape.has_text_frame:
-            shape_data["text"] = self.extract_text()
-            shape_data["font_details"] = self.extract_font_info()
+            try:
+                shape_data["text"] = self.extract_text()
+                shape_data["font_details"] = self.extract_font_info()
+            except AttributeError as e:
+                # Handle shapes that unexpectedly do not have a text frame
+                logger.error(
+                    f"Error extracting text from shape ID {self._shape.shape_id}: {e}"
+                )
+                shape_data["text"] = ""
+                shape_data["font_details"] = []
         return shape_data
+
 
 
 class PlaceholderExtractor(BaseAutoShapeExtractor):
@@ -108,7 +128,10 @@ class PlaceholderExtractor(BaseAutoShapeExtractor):
 
     def extract_shape(self) -> dict:
         shape_data = super().extract_shape()
-        shape_data["placeholder_type"] = self.extract_placeholder_format()
+        try:
+            shape_data["placeholder_type"] = self.extract_placeholder_format()
+        except AttributeError:
+            shape_data["placeholder_type"] = "Unknown"
         return shape_data
 
 
@@ -161,8 +184,9 @@ class PictureExtractor(BaseShapeExtractor):
 
     def extract_shape(self) -> dict:
         shape_data = super().extract_shape()
-        if self.extract_auto_shape_type() is not None:
-            shape_data["auto_shape_type"] = self.extract_auto_shape_type()
+        auto_shape_type = self.extract_auto_shape_type()
+        if auto_shape_type is not None:
+            shape_data["auto_shape_type"] = auto_shape_type
         # shape_data["blob_str"] = self._extract_blob_str()
         return shape_data
 
@@ -200,3 +224,8 @@ class GroupShapeExtractor(BaseShapeExtractor):
             group_shape_data.append(shape_data)
 
         return group_shape_data
+
+    def extract_shape(self) -> dict:
+        shape_data = super().extract_shape()
+        shape_data["group_shapes"] = self.extract_group_shapes()
+        return shape_data

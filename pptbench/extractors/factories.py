@@ -1,6 +1,7 @@
 # pptbench/extractors/factories.py
 
 from typing import TypeAlias, Union
+import logging
 
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.shapes.autoshape import Shape as AutoShape
@@ -21,6 +22,10 @@ from .shape_extractors import (
     PictureExtractor,
     PlaceholderExtractor,
 )
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 ShapeExtractor: TypeAlias = Union[
     BaseShapeExtractor,
@@ -67,9 +72,32 @@ DEFAULT_EXTRACTOR = BaseShapeExtractor
 
 
 def shape_extractor_factory(
-    shape: Shape, measurement_unit: str = "pt"
+        shape: Shape, measurement_unit: str = "pt"
 ) -> ShapeExtractor:
-    """Factory function to create a shape extractor based on the shape type."""
-    shape_type = shape.shape_type
-    extractor = SHAPE_EXTRACTOR_MAP.get(shape_type, DEFAULT_EXTRACTOR)
-    return extractor(shape, measurement_unit)
+    """Factory function to create a shape extractor based on the shape type or text frame."""
+    # First, check if the shape has a text frame
+    if hasattr(shape, "has_text_frame") and shape.has_text_frame:
+        logger.info(
+            f"Shape ID {shape.shape_id} has a text frame. Using BaseAutoShapeExtractor."
+        )
+        return BaseAutoShapeExtractor(shape, measurement_unit)
+
+    try:
+        shape_type = shape.shape_type
+    except NotImplementedError:
+        logger.warning(
+            f"Unrecognized shape type for shape ID {shape.shape_id}. Using default extractor."
+        )
+        # Access and log the shape's XML for debugging
+        shape_xml = shape.element.xml
+        logger.debug(f"Shape ID {shape.shape_id} XML: {shape_xml}")
+        return DEFAULT_EXTRACTOR(shape, measurement_unit)
+
+    extractor_class = SHAPE_EXTRACTOR_MAP.get(shape_type, DEFAULT_EXTRACTOR)
+
+    if extractor_class is DEFAULT_EXTRACTOR:
+        logger.warning(
+            f"No specific extractor for shape type '{shape_type}' (ID: {shape.shape_id}). Using default extractor."
+        )
+
+    return extractor_class(shape, measurement_unit)

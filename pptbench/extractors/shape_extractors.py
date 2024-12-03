@@ -1,3 +1,5 @@
+# pptbench/extractors/shape_extractors.py
+
 from pptbench.utils import unit_conversion
 from pptx.enum.shapes import MSO_AUTO_SHAPE_TYPE, MSO_SHAPE_TYPE, PP_PLACEHOLDER_TYPE
 from pptx.shapes.autoshape import Shape as AutoShape
@@ -15,10 +17,9 @@ class BaseShapeExtractor:
 
     def extract_shape_type(self) -> str:
         shape_type = self._shape.shape_type
-        # Check if the shape type is a valid MSO_SHAPE_TYPE enum member
         if isinstance(shape_type, MSO_SHAPE_TYPE):
-            return shape_type.name  # Returns the name of the enum member
-        return str(shape_type)  # Fallback in case it's not in the enum
+            return shape_type.name
+        return str(shape_type)
 
     def extract_height(self) -> int | float:
         return unit_conversion(self._shape.height, self._measurement_unit)
@@ -57,23 +58,45 @@ class BaseAutoShapeExtractor(BaseShapeExtractor):
             return self._shape.text  # type: ignore[attr-defined]
         raise AttributeError("Shape does not have a text frame")
 
+    def extract_font_info(self) -> list:
+        """
+        Extracts font information from all text runs within the shape.
+
+        Returns:
+            A list of dictionaries containing paragraph index, run index, text, font name, and font size.
+        """
+        if not self._shape.has_text_frame:
+            raise AttributeError("Shape does not have a text frame")
+
+        font_details = []
+        for p_idx, paragraph in enumerate(self._shape.text_frame.paragraphs):
+            for r_idx, run in enumerate(paragraph.runs):
+                font = run.font
+                font_name = font.name if font.name else "Default"
+                # Extract font size in points without conversion
+                font_size = font.size.pt if font.size else 12  # Default size 12pt
+                font_details.append(
+                    {
+                        "paragraph_index": p_idx,
+                        "run_index": r_idx,
+                        "text": run.text,
+                        "font_name": font_name,
+                        "font_size": font_size,  # Size in points
+                    }
+                )
+        return font_details
+
     def extract_shape(self) -> dict:
         shape_data = super().extract_shape()
         if self._shape.has_text_frame:
             shape_data["text"] = self.extract_text()
+            shape_data["font_details"] = self.extract_font_info()
         return shape_data
 
 
 class PlaceholderExtractor(BaseAutoShapeExtractor):
     def __init__(self, shape: AutoShape, measurement_unit: str = "pt"):
         super().__init__(shape, measurement_unit)
-
-    # def _extract_placeholder_type(self) -> str:
-    #     placeholder_type = self._shape.ph_type  # type: ignore[attr-defined]
-    #     # Check if the placeholder type is a valid PP_PLACEHOLDER_TYPE enum member
-    #     if isinstance(placeholder_type, PP_PLACEHOLDER_TYPE):
-    #         return placeholder_type.name
-    #     raise AttributeError("Unknown placeholder type")
 
     def extract_placeholder_format(self) -> str:
         placeholder_format = self._shape.placeholder_format

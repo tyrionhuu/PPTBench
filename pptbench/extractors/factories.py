@@ -1,3 +1,5 @@
+# pptbench/extractors/factories.py
+
 from typing import TypeAlias, Union
 
 from pptx.enum.shapes import MSO_SHAPE_TYPE

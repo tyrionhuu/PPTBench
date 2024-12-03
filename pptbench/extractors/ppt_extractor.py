@@ -1,16 +1,18 @@
+# pptbench/extractors/ppt_extractor.py
+
 from pptbench.utils import unit_conversion
 from pptx.presentation import Presentation
 from pptx.slide import Slide
 
 from .factories import shape_extractor_factory
-
+from .notes_extractor import NotesExtractor  # Ensure this import is correct
 
 class SlideShapeExtractor:
     def __init__(self, slide: Slide, measurement_unit: str = "pt"):
         self._slide = slide
         self._measurement_unit = measurement_unit
 
-    def extract_slide_metadate(self) -> dict:
+    def extract_slide_metadata(self) -> dict:
         return {
             "slide_id": self._slide.slide_id,
             "slide_name": self._slide.name,
@@ -26,9 +28,19 @@ class SlideShapeExtractor:
         extractor = shape_extractor_factory(shape, self._measurement_unit)
         return extractor.extract_shape()
 
+    def extract_notes(self) -> dict:
+        if self._slide.has_notes_slide:
+            notes_slide = self._slide.notes_slide
+            extractor = NotesExtractor(notes_slide, self._measurement_unit)
+            return extractor.extract_notes()
+        return {}
+
     def extract_slide(self) -> dict:
-        slide_data = self.extract_slide_metadate()
+        slide_data = self.extract_slide_metadata()
         slide_data["shapes"] = self.extract_shapes()
+        notes_data = self.extract_notes()
+        if notes_data:
+            slide_data["notes"] = notes_data
         return slide_data
 
 

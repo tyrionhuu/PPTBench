@@ -3,7 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/PPTBench.iml" filepath="$PROJECT_DIR$/.idea/PPTBench.iml" />
-      <module fileurl="file://$PROJECT_DIR$/pptbench/pptbench.iml" filepath="$PROJECT_DIR$/pptbench/pptbench.iml" />
+      <module fileurl="file://$PROJECT_DIR$/src/pptbench/pptbench.iml" filepath="$PROJECT_DIR$/src/pptbench/pptbench.iml" />
     </modules>
   </component>
 </project>
